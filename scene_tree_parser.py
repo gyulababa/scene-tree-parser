@@ -2,16 +2,26 @@ import os
 import re
 
 def clean_line(line):
-    # Remove tree symbols but preserve node format
     return re.sub(r"^[\s│├└─]*", "", line).strip()
 
 def get_indent_level(line):
-    # Determine indent level by dividing the prefix length by 4.
     match = re.match(r"^([\s│├└─]*)", line)
     if not match:
         return 0
     prefix = match.group(1)
     return len(prefix) // 4
+
+def extract_uid_from_existing_tscn(tscn_path):
+    if os.path.exists(tscn_path):
+        with open(tscn_path, 'r', encoding='utf-8') as f:
+            first_line = f.readline().strip()
+            match = re.search(r'uid="([^"]+)"', first_line)
+            if match:
+                uid = match.group(1)
+                print(f"🔑 Found existing UID: {uid}")
+                return uid
+    print("⚠️ No UID found. Generating default UID.")
+    return "uid://generated-default"
 
 def parse_scene_tree(lines):
     nodes = []
@@ -25,7 +35,6 @@ def parse_scene_tree(lines):
             print(f"⚠️ Skipped line {line_num}: '{original_line}' (empty)")
             continue
 
-        # Handle property lines (those starting with a colon)
         if original_line.strip().startswith(":"):
             try:
                 prop_def = original_line.strip()[1:]
@@ -40,10 +49,9 @@ def parse_scene_tree(lines):
                 print(f"⚠️ Failed to parse property at line {line_num}: '{original_line.strip()}' → {e}")
             continue
 
-        # Clean the line and compute the indent level using the helper function
         clean_line_text = re.sub(r"[│├└─]+", "", original_line).strip()
         prefix = original_line[:original_line.index(clean_line_text)]
-        indent_level = len(prefix) // 4  # Correctly compute level: 4 characters per indent
+        indent_level = len(prefix) // 4
 
         print(f"\n🔹 Line {line_num}: '{original_line}'")
         print(f"  ✂️ Cleaned Line: '{clean_line_text}'")
@@ -53,24 +61,21 @@ def parse_scene_tree(lines):
             print(f"⚠️ Skipped line {line_num}: '{original_line}' (unrecognized format)")
             continue
 
-        # Split the cleaned line into node name and type
         name, node_type = clean_line_text.split("(", 1)
         name = name.strip()
         node_type = node_type.strip(") ")
 
         if indent_level == 0:
-            parent_path = None  # Root node
+            parent_path = None
             full_path = name
         elif indent_level == 1:
-            parent_path = "."  # Direct child of root
+            parent_path = "."
             full_path = name
         else:
-            # For deeper levels, use the parent's full_path to create the full path
             parent_node = path_stack[indent_level - 1]
             parent_path = parent_node["name"] if indent_level == 2 else parent_node["full_path"]
             full_path = f"{parent_path}/{name}"
 
-        # Save current node in the path stack for future children
         path_stack[indent_level] = {"name": name, "full_path": full_path}
 
         print(f"  📦 Node: {name} ({node_type})")
@@ -87,15 +92,16 @@ def parse_scene_tree(lines):
     return nodes, properties
 
 def write_tscn(tree, properties, out_path):
-    lines = ['[gd_scene load_steps={} format=3]'.format(len(tree))]
+    uid = extract_uid_from_existing_tscn(out_path)
+    lines = [f'[gd_scene format=3 uid="{uid}"]']
+
     for node in tree:
-        # If the node's parent is None, output "None"; otherwise, output its value.
         parent_val = node["parent"] if node["parent"] is not None else "None"
         lines.append(f'[node name="{node["name"]}" type="{node["type"]}" parent="{parent_val}"]')
         props = properties.get(node["name"], {})
         for key, value in props.items():
             lines.append(f'{key} = "{value}"')
-        lines.append("")  # spacer line
+        lines.append("")
 
     print("\n📝 .tscn Preview:\n")
     print("\n".join(lines))
