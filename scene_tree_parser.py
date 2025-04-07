@@ -20,8 +20,8 @@ def extract_uid_from_existing_tscn(tscn_path):
                 uid = match.group(1)
                 print(f"🔑 Found existing UID: {uid}")
                 return uid
-    print("⚠️ No UID found. Generating default UID.")
-    return "uid://generated-default"
+    print("⚠️ No UID found.")
+    return None
 
 def parse_scene_tree(lines):
     nodes = []
@@ -91,17 +91,23 @@ def parse_scene_tree(lines):
 
     return nodes, properties
 
-def write_tscn(tree, properties, out_path):
-    uid = extract_uid_from_existing_tscn(out_path)
-    lines = [f'[gd_scene format=3 uid="{uid}"]']
-
+def write_tscn(tree, properties, out_path, uid=None):
+    uid_attr = f' uid="{uid}"' if uid else ""
+    lines = [f'[gd_scene format=3{uid_attr}]']
     for node in tree:
-        parent_val = node["parent"] if node["parent"] is not None else "None"
-        lines.append(f'[node name="{node["name"]}" type="{node["type"]}" parent="{parent_val}"]')
-        props = properties.get(node["name"], {})
+        name = node["name"]
+        type_ = node["type"]
+        parent = node["parent"]
+
+        if parent is None:
+            lines.append(f'[node name="{name}" type="{type_}"]')
+        else:
+            lines.append(f'[node name="{name}" type="{type_}" parent="{parent}"]')
+
+        props = properties.get(name, {})
         for key, value in props.items():
             lines.append(f'{key} = "{value}"')
-        lines.append("")
+        lines.append("")  # spacer line
 
     print("\n📝 .tscn Preview:\n")
     print("\n".join(lines))
@@ -111,12 +117,12 @@ def write_tscn(tree, properties, out_path):
 
 def main():
     root = os.getcwd()
-    path = os.path.join(root, "tree.txt")
+    tree_path = os.path.join(root, "tree.txt")
 
     print(f"📂 Working directory: {root}")
-    print(f"📄 Reading: {path}\n")
+    print(f"📄 Reading: {tree_path}\n")
 
-    with open(path, 'r', encoding='utf-8') as f:
+    with open(tree_path, 'r', encoding='utf-8') as f:
         lines = f.read().splitlines()
 
     print("📜 Raw tree.txt content:")
@@ -129,10 +135,12 @@ def main():
     print("\n🧩 Parsed Scene Tree:")
     for node in tree:
         print(f' - {node["name"]} ({node["type"]}) — Parent: {node["parent"]}')
+
     if tree:
         root_name = tree[0]["name"]
         tscn_path = os.path.join(root, f"{root_name}.tscn")
-        write_tscn(tree, properties, tscn_path)
+        uid = extract_uid_from_existing_tscn(tscn_path)
+        write_tscn(tree, properties, tscn_path, uid=uid)
     else:
         print("❌ No valid nodes found.")
 
