@@ -1,15 +1,31 @@
 # 🌳 Scene Tree Parser for Godot
 
-This Python tool allows you to write Godot scene hierarchies using a clean, readable, indented text format — and automatically converts them into `.tscn` files usable by Godot Engine.
+This Python tool allows you to write Godot scene hierarchies using a clean, readable, indented text format—and automatically converts them into `.tscn` files usable by the Godot Engine.
 
 ---
 
 ## ✨ Features
 
-- Parse human-readable scene trees with node types.
-- Assign properties inline using simple syntax.
-- Outputs a ready-to-use `.tscn` file with optional UID preservation.
-- Debug-friendly output during parsing and file generation.
+- **Human-Readable Scene Parsing:**  
+  Write your scene trees in a plain-text file using intuitive indented hierarchy and Godot node notation.
+
+- **Inline Property Assignment:**  
+  Assign properties directly inline using a simple syntax.
+
+- **TS Scene File Generation:**  
+  Produces ready-to-use `.tscn` files while preserving existing scene UIDs if present.
+
+- **Enhanced Parsing Efficiency:**  
+  Uses regex caching and efficient string slicing to optimize the parsing process.
+
+- **Robust Error Handling & Logging:**  
+  Improved validations and granular logging (via Python's `logging` module) to help debug format errors and parsing issues.
+
+- **Structured Data Model:**  
+  Adopts a modern data model using Python's `dataclasses` for clear definition and maintainability of Node objects.
+
+- **Command-Line Interface (CLI):**  
+  Accepts CLI arguments for specifying input/output paths and toggling verbose debugging output.
 
 ---
 
@@ -44,19 +60,19 @@ QuestCard (Panel)
 
 ### 1. Create Your Scene Tree
 
-- Save the above structure in a file named `tree.txt`.
-- Place it in the same directory as `scene_tree_parser.py`.
+- Save the above structure in a file (e.g., `tree.txt`).
+- Place it in the same directory as `scene_tree_parser.py` (or specify a different file via CLI).
 
 ### 2. Run the Parser
 
 ```bash
-python scene_tree_parser.py
+python scene_tree_parser.py --tree-file tree.txt --output-dir <output_directory> --verbose
 ```
 
 ### 3. Output
 
 - The script generates a file like `QuestCard.tscn`.
-- If a `.tscn` with the same name already exists, its UID will be preserved.
+- If a `.tscn` with the same name already exists, its UID is preserved.
 
 ---
 
@@ -119,35 +135,46 @@ QuestCard (Panel)
 
 ### Parsing
 
-- Detects indentation level using tree-drawing symbols (`├──`, `└──`, `│`).
-- Extracts node name and type from lines like `NodeName (NodeType)`.
-- Tracks hierarchy with a stack.
-- Supports optional inline properties using `:Node.property=value`.
+- **Indentation Detection:**  
+  Uses tree-drawing symbols (`├──`, `└──`, `│`) and regex-based cleaning to determine indentation levels.
+  
+- **Efficient String Operations:**  
+  Uses efficient string slicing to extract node names and types.
+
+- **Regex Caching:**  
+  Common regular expressions are compiled once at module load for performance.
+
+- **Structured Data Model:**  
+  Node information is stored in a `Node` dataclass, ensuring clear, maintainable structure.
+
+- **Error Handling & Logging:**  
+  Implements enhanced validation of input lines and logs errors/warnings using Python’s `logging` module.
 
 ### Generation
 
-- Produces a valid `.tscn` file using Godot 3 format.
-- Optionally preserves UID from a preexisting `.tscn`.
+- Produces a valid `.tscn` file conforming to Godot 3 standards.
+- Optionally preserves UID from an existing `.tscn` file.
+- Supports CLI arguments for flexible file input/output management.
 
 ---
 
 ## 📁 Output Example
 
-For the input shown earlier, this will produce a `.tscn` like:
+For the input shown earlier, this will produce a `.tscn` file similar to:
 
 ```tscn
 [gd_scene format=3 uid="abc123"]
 
 [node name="QuestCard" type="Panel"]
 [node name="HBoxContainer" type="HBoxContainer" parent="QuestCard"]
-[node name="IconLabel" type="Label" parent="HBoxContainer"]
-[node name="IconShadow" type="Control" parent="IconLabel"]
-[node name="IconBorder" type="Control" parent="IconLabel"]
-[node name="Info" type="VBoxContainer" parent="HBoxContainer"]
-[node name="NameLabel" type="Label" parent="Info"]
-[node name="NameBadge" type="TextureRect" parent="NameLabel"]
-[node name="Description" type="Label" parent="Info"]
-[node name="MetaLabel" type="Label" parent="Info"]
+[node name="IconLabel" type="Label" parent="QuestCard/HBoxContainer"]
+[node name="IconShadow" type="Control" parent="QuestCard/HBoxContainer/IconLabel"]
+[node name="IconBorder" type="Control" parent="QuestCard/HBoxContainer/IconLabel"]
+[node name="Info" type="VBoxContainer" parent="QuestCard/HBoxContainer"]
+[node name="NameLabel" type="Label" parent="QuestCard/HBoxContainer/Info"]
+[node name="NameBadge" type="TextureRect" parent="QuestCard/HBoxContainer/Info/NameLabel"]
+[node name="Description" type="Label" parent="QuestCard/HBoxContainer/Info"]
+[node name="MetaLabel" type="Label" parent="QuestCard/HBoxContainer/Info"]
 
 text = "This is a quest"
 text = "Complete this for glory!"
@@ -160,25 +187,24 @@ texture = "res://assets/badge.png"
 
 ## 🧪 Debug Output
 
-The script prints helpful logs during parsing:
+When running in verbose mode, the script prints helpful logs during parsing—for example:
 
 ```
-🔹 Line 5: '    ├── NameLabel (Label)'
-  ✂️ Cleaned Line: 'NameLabel (Label)'
-  🔢 Indentation Level: 2
-  📦 Node: NameLabel (Label)
-  📁 Parent Path: Info
-  📄 Full Path: Info/NameLabel
+DEBUG: Line 5: indent level 2, text: 'NameLabel (Label)'
+DEBUG: Node parsed: NameLabel (Label), Parent: Info, Full Path: QuestCard/HBoxContainer/Info/NameLabel
 ```
 
 ---
 
-## 🚀 Future Ideas
+## 🚀 Recent Enhancements
 
-- Support for `export` hints or groups.
-- Godot 4 support with scene format upgrades.
-- CLI arguments for input/output paths.
-- Optional reusable templates/snippets.
+These updates have improved the parser significantly:
+- **Regex Caching:** Compiled all frequently used regex patterns at module load time for performance gains.
+- **String Slicing:** Leveraged efficient string slicing to extract node details quickly and reliably.
+- **Enhanced Error Handling:**  
+  Adopted Python's `logging` module for detailed error, warning, and debug output.
+- **Data Model Improvements:**  
+  Introduced a `Node` dataclass to clearly encapsulate each node's data (name, type, parent, full_path) for better maintainability and future scalability.
 
 ---
 
